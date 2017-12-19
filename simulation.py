@@ -82,9 +82,10 @@ class Simulation(animation.TimedAnimation):
 
         self.L = np.power(self.V0, 1/3)
         self.halfL = self.L / 2
+        self.A = 6 * self.L**2
 
         self.max_time = max_time
-        self.dt = 1
+        self.dt = 0.2
         self.Nt = int(max_time / self.dt)
 
         self.evaluate_properties()
@@ -96,7 +97,7 @@ class Simulation(animation.TimedAnimation):
         self.Nv = int((self.max_v - self.min_v) / self.dv)
 
         # pressure
-        self.dP = 10 # (s)
+        self.dP = 1 # (s)
         self.NP = int(max_time / self.dP)
 
         self.init_particles()
@@ -211,6 +212,7 @@ class Simulation(animation.TimedAnimation):
         self.ax6.plot(Vx, self.PART * k_B * self.T / Vx, color='r', lw=0.5)
 
         self.ex_p = 0.0 # accumulated exchanged momentum with the walls
+        self.last_P = -1
         self.P_x = np.zeros(self.NP)
         self.P_y = np.zeros(self.NP)
 
@@ -230,6 +232,7 @@ class Simulation(animation.TimedAnimation):
         self.V0 = self.V(t)
         self.L = np.power(self.V0, 1/3)
         self.halfL = self.L / 2
+        self.A = 6 * self.L**2
 
         box_limits = [-self.halfL, self.halfL]
         self.ax1.set_xlim3d(box_limits)
@@ -247,7 +250,7 @@ class Simulation(animation.TimedAnimation):
 
         # update the position
         self.r += self.dt * self.v
-
+        
         # check for collitions with other particles
         dists = np.sqrt(mod(self.r - self.r[:,np.newaxis]))
         cols2 = (0 < dists) & (dists < self.DIAM)
@@ -268,10 +271,11 @@ class Simulation(animation.TimedAnimation):
             # update the positions so they are no longer in contact
             self.r[i] += self.dt * self.v[i]
             self.r[j] += self.dt * self.v[j]
-
+		
         # check for collition with the walls
         walls = np.nonzero(np.abs(self.r) + self.RAD > self.halfL)
         self.v[walls] *= -1
+        self.r[walls] -= self.RAD * np.sign(self.r[walls])
 
         # calc the position of the center of masses
         CM = np.sum(self.r, axis=0) / self.PART
@@ -302,13 +306,15 @@ class Simulation(animation.TimedAnimation):
 
         # add the momentum exchanged in this iteration to the accumulated one
         self.ex_p += 2 * self.MASS * np.sum(np.abs(self.v[walls]))
-        if t > 1 and int(t / self.dt) % self.dP == 0:
+        if int(t / self.dP) > self.last_P + 1:
             # calculate the pressure after self.dP seconds
+
+            avg_A = (self.A + 6 * np.power(self.V(self.last_P), 2/3)) / 2
 
             self.last_P = int(t / self.dP) - 1
 
             self.P_x[self.last_P] = self.V0
-            self.P_y[self.last_P] = self.ex_p / (self.dP * self.V0)
+            self.P_y[self.last_P] = self.ex_p / (self.dP * avg_A)
 
             self.ex_p = 0.0
 
@@ -318,16 +324,27 @@ class Simulation(animation.TimedAnimation):
     def new_frame_seq(self):
         return iter(np.linspace(0, self.max_time, self.Nt))
 
+    def save_results(self, file_name='a'):
+    	with open(file_name + '_preassure.txt', 'w') as outf:
+    		t = np.linspace(0, self.max_time, self.NP)
+    		for i in xrange(self.NP):
+    			outf.write('%.5f\t%.5f\t%.5g\n' % (t[i], self.P_x[i], self.P_y[i]))
+
+		with open(file_name + '_hist_vel.txt', 'w') as outf:
+			for i in xrange(self.Nv):
+				outf.write('%.5f\t%.5g\n' % (self.vel_x[i], self.vel_y[i]))
+
 def V(t, V0, Vf, t_max):
-    return V0 + (Vf - V0) * t / t_max
+    return V0 # V0 + (Vf - V0) * t / t_max
 
 PARTICLES = 500
 MASS = 1.2e-20
 RADIUS = 0.03
 TEMPERATURE = 300
-V0, Vf = 0.5, 15
+V0, Vf = 1, 0.5 # 0.5, 15
 T_MAX = 1000
 
 ani = Simulation(PARTICLES, MASS, RADIUS, TEMPERATURE, lambda t: V(t, V0, Vf, T_MAX), T_MAX)
 # ani.save('test_sub.mp4', writer='imagemagick', fps=5)
 plt.show()
+ani.save_results('expansion')
