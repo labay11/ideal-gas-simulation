@@ -5,9 +5,15 @@ Just execute it and theoretically it will work (as everything).
 
 The box is supposed to be a cube but you can change it to be the shape you want. By default, the volume remains constant during the animation but you can change it to be dynamic and study, for example, compressions and expansion.
 
-I encourage you to study, as well as study volume changes, temperature (energy) changes.
+I encourage you to study, as well as volume changes, temperature (energy) changes.
 
 As allways, all comments will be very grateful.
+
+# Notes
+There are two important things I should remark:
+- In order for collisions to happen on a ''short'' period of time so as to see how the velocities converge to Maxwell-Boltzmann distribution, the radius of the particles must be `~(V/N)^(1/3)`. Otherwise, the momentum exchanged after each iteration will be small.
+- Second, the way preassure is calculated is a bit tricky because if `dt` is two big then the particle will pass through the wall without collinding and, as a consequence, without exchanging momenta with the walls.
+
 
 # License
     Copyright 2017 labay11
